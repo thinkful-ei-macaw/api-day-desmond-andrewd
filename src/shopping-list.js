@@ -52,12 +52,16 @@ const handleNewItemSubmit = function () {
     event.preventDefault();
     const newItemName = $('.js-shopping-list-entry').val();
     $('.js-shopping-list-entry').val('');
-    store.addItem(newItemName);
   
   api.createItem(newItemName)
-  .then(res => res.json())
+  // .then(res => res.json())
   .then((newItem) => {
     store.addItem(newItem);
+    render();
+  })
+  .catch((error) => {
+    alert(error.message);
+    store.setError(error.message);
     render();
   }); 
 });
@@ -74,9 +78,15 @@ const handleDeleteItemClicked = function () {
     // get the index of the item in store.items
     const id = getItemIdFromElement(event.currentTarget);
     // delete the item
-    store.findAndDelete(id);
-    // render the updated shopping list
-    render();
+    api.deleteItem(id)
+      .then(() => {
+        store.findAndDelete(id);
+        render();
+      })
+      .catch((error) => {
+        store.setError(error.message);
+        render();
+      });
   });
 };
 
@@ -85,16 +95,53 @@ const handleEditShoppingItemSubmit = function () {
     event.preventDefault();
     const id = getItemIdFromElement(event.currentTarget);
     const itemName = $(event.currentTarget).find('.shopping-item').val();
-    store.findAndUpdateName(id, itemName);
-    render();
+    api.updateItem(id, { name: itemName })
+      .then(() => {
+        store.findAndUpdate(id, { name: itemName });
+        render();
+      })
+      .catch((error) => {
+        store.setError(error.message);
+        render();
+      });
+
   });
 };
 
 const handleItemCheckClicked = function () {
   $('.js-shopping-list').on('click', '.js-item-toggle', event => {
     const id = getItemIdFromElement(event.currentTarget);
-    store.findAndToggleChecked(id);
-    render();
+    const item = store.findById(id);
+    api.updateItem(id, { checked: !item.checked })
+      .then(() => {
+        store.findAndUpdate(id, { checked: !item.checked });
+        render();
+      })
+      .catch((error) => {
+        store.setError(error.message);
+        render();
+      });
+  });
+};
+
+const renderError = function () {
+  if(store.error) {
+    const el = generateError(store.error);
+    console.log(el);
+    $( '.errorBox' ).html(el);
+  } else {
+    $( '.errorBox' ).html('');
+  }
+};
+
+const generateError = function(message) {
+  return `<section class="ifError"><h2>${message}</h2></section>`;
+};
+
+const handleErrorMessage = function() {
+  $( '.errorBox' ).on('click', '.ifError', () => {
+    store.setError(null);
+    renderError();
   });
 };
 
@@ -111,6 +158,7 @@ const bindEventListeners = function () {
   handleDeleteItemClicked();
   handleEditShoppingItemSubmit();
   handleToggleFilterClick();
+  handleErrorMessage();
 };
 // This object contains the only exposed methods from this module:
 export default {
